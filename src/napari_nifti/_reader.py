@@ -1,11 +1,4 @@
-"""
-This module is an example of a barebones numpy reader plugin for napari.
-
-It implements the Reader specification, but your plugin may choose to
-implement multiple readers or even other plugin contributions. see:
-https://napari.org/stable/plugins/guides.html?#readers
-"""
-import numpy as np
+import SimpleITK as sitk
 
 
 def napari_get_reader(path):
@@ -29,7 +22,7 @@ def napari_get_reader(path):
         path = path[0]
 
     # if we know we cannot read the file, we immediately return None.
-    if not path.endswith(".npy"):
+    if not (path.endswith(".nii") or path.endswith(".nii.gz")):
         return None
 
     # otherwise we return the *function* that can read ``path``.
@@ -54,19 +47,26 @@ def reader_function(path):
         A list of LayerData tuples where each tuple in the list contains
         (data, metadata, layer_type), where data is a numpy array, metadata is
         a dict of keyword arguments for the corresponding viewer.add_* method
-        in napari, and layer_type is a lower-case string naming the type of
-        layer. Both "meta", and "layer_type" are optional. napari will
-        default to layer_type=="image" if not provided
+        in napari, and layer_type is a lower-case string naming the type of layer.
+        Both "meta", and "layer_type" are optional. napari will default to
+        layer_type=="image" if not provided
     """
     # handle both a string and a list of strings
     paths = [path] if isinstance(path, str) else path
-    # load all files into array
-    arrays = [np.load(_path) for _path in paths]
-    # stack arrays into single array
-    data = np.squeeze(np.stack(arrays))
+    # load all files
+    image_data_list = [load_nifti(_path) for _path in paths]
+    # Convert to LayerData tuples
+    layer_data = [(image_data["image"], {"metadata": {"spacing": image_data["spacing"], "affine": image_data["affine"], "header": image_data["header"]}}, "image") for image_data in image_data_list]
+    print("Image loaded.")
+    return layer_data
 
-    # optional kwargs for the corresponding viewer.add_* method
-    add_kwargs = {}
 
-    layer_type = "image"  # optional, default is "image"
-    return [(data, add_kwargs, layer_type)]
+def load_nifti(filename):
+    image_data = sitk.ReadImage(filename)
+    image = sitk.GetArrayFromImage(image_data)
+
+    spacing = image_data.GetSpacing()
+    keys = image_data.GetMetaDataKeys()
+    header = {key: image_data.GetMetaData(key) for key in keys}
+    affine = None  # How do I get the affine transform with SimpleITK? With NiBabel it is just image_data.affine
+    return {"image": image, "spacing": spacing, "affine": affine, "header": header}

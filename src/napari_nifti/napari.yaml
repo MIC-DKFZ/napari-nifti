@@ -1,24 +1,21 @@
 name: napari-nifti
-display_name: Nifti
+display_name: napari-nifti
 contributions:
   commands:
     - id: napari-nifti.get_reader
       python_name: napari_nifti._reader:napari_get_reader
-      title: Open data with Nifti
-    - id: napari-nifti.write_multiple
-      python_name: napari_nifti._writer:write_multiple
-      title: Save multi-layer data with Nifti
+      title: Open a Nifti image with napari-nifti
     - id: napari-nifti.write_single_image
       python_name: napari_nifti._writer:write_single_image
-      title: Save image data with Nifti
+      title: Save an image as Nifti with napari-nifti
   readers:
     - command: napari-nifti.get_reader
       accepts_directories: false
-      filename_patterns: ['*.npy']
+      filename_patterns: [ '*.nii', '*.nii.gz' ]
   writers:
-    - command: napari-nifti.write_multiple
-      layer_types: ['image*','labels*']
-      filename_extensions: []
     - command: napari-nifti.write_single_image
       layer_types: ['image']
-      filename_extensions: ['.npy']
+      filename_extensions: [ '*.nii', '*.nii.gz' ]
+    - command: napari-nifti.write_single_image
+      layer_types: [ 'labels' ]
+      filename_extensions: [ '*.nii', '*.nii.gz' ]
