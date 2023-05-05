@@ -56,17 +56,17 @@ def reader_function(path):
     # load all files
     image_data_list = [load_nifti(_path) for _path in paths]
     # Convert to LayerData tuples
-    layer_data = [(image_data["image"], {"metadata": {"spacing": image_data["spacing"], "affine": image_data["affine"], "header": image_data["header"]}}, "image") for image_data in image_data_list]
-    print("Image loaded.")
+    layer_data = [(image_data["image"], {"scale": image_data["scale"], "metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
     return layer_data
 
 
 def load_nifti(filename):
     image_data = sitk.ReadImage(filename)
     image = sitk.GetArrayFromImage(image_data)
-
     spacing = image_data.GetSpacing()
+    scale = list(spacing)[::-1]
     keys = image_data.GetMetaDataKeys()
-    header = {key: image_data.GetMetaData(key) for key in keys}
-    affine = None  # How do I get the affine transform with SimpleITK? With NiBabel it is just image_data.affine
-    return {"image": image, "spacing": spacing, "affine": affine, "header": header}
+    metadata = {key: image_data.GetMetaData(key) for key in keys}
+    origin = image_data.GetOrigin()
+    direction = image_data.GetDirection()
+    return {"image": image, "scale": scale, "metadata": {"metadata": metadata, "origin": origin, "direction": direction, "spacing": spacing}}
