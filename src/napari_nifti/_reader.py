@@ -56,7 +56,8 @@ def reader_function(path):
     # load all files
     image_data_list = [load_nifti(_path) for _path in paths]
     # Convert to LayerData tuples
-    layer_data = [(image_data["image"], {"scale": image_data["scale"], "metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
+    # layer_data = [(image_data["image"], {"scale": image_data["scale"], "metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
+    layer_data = [(image_data["image"], {"metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
     return layer_data
 
 
