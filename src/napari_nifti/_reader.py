@@ -1,5 +1,5 @@
 import SimpleITK as sitk
-
+import numpy as np
 
 def napari_get_reader(path):
     """A basic implementation of a Reader contribution.
@@ -56,8 +56,7 @@ def reader_function(path):
     # load all files
     image_data_list = [load_nifti(_path) for _path in paths]
     # Convert to LayerData tuples
-    # layer_data = [(image_data["image"], {"scale": image_data["scale"], "metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
-    layer_data = [(image_data["image"], {"metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
+    layer_data = [(image_data["image"], {"affine": image_data["affine"], "metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
     return layer_data
 
 
@@ -70,4 +69,11 @@ def load_nifti(filename):
     metadata = {key: image_data.GetMetaData(key) for key in keys}
     origin = image_data.GetOrigin()
     direction = image_data.GetDirection()
-    return {"image": image, "scale": scale, "metadata": {"metadata": metadata, "origin": origin, "direction": direction, "spacing": spacing}}
+    # affine = np.zeros((4, 4))
+    # affine[:3, :3] = np.asarray(direction).reshape(3, 3)
+    # affine[3, 3] = 1
+    affine = np.eye(4)
+    affine[0, 0] = scale[0]
+    affine[1, 1] = scale[1]
+    affine[2, 2] = scale[2]
+    return {"image": image, "affine": affine, "scale": scale, "metadata": {"metadata": metadata, "origin": origin, "direction": direction, "spacing": spacing}}
