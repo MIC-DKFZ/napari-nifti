@@ -1,4 +1,4 @@
-__version__ = "0.0.12"
+__version__ = "0.0.13"
 
 from ._reader import napari_get_reader
 from ._writer import write_single_image

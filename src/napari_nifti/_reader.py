@@ -1,5 +1,4 @@
-import SimpleITK as sitk
-import numpy as np
+from medvol import MedVol
 
 def napari_get_reader(path):
     """A basic implementation of a Reader contribution.
@@ -54,26 +53,9 @@ def reader_function(path):
     # handle both a string and a list of strings
     paths = [path] if isinstance(path, str) else path
     # load all files
-    image_data_list = [load_nifti(_path) for _path in paths]
+    image_data_list = [MedVol(_path) for _path in paths]
     # Convert to LayerData tuples
-    layer_data = [(image_data["image"], {"affine": image_data["affine"], "metadata": image_data["metadata"]}, "image") for image_data in image_data_list]
+    layer_data = [(image_data.array, {"affine": image_data.affine, 
+                                      "metadata": {"spacing": image_data.spacing, "origin": image_data.origin, "direction": image_data.direction, "header": image_data.header}}, "image")
+                  for image_data in image_data_list]
     return layer_data
-
-
-def load_nifti(filename):
-    image_data = sitk.ReadImage(filename)
-    image = sitk.GetArrayFromImage(image_data)
-    spacing = image_data.GetSpacing()
-    scale = list(spacing)[::-1]
-    keys = image_data.GetMetaDataKeys()
-    metadata = {key: image_data.GetMetaData(key) for key in keys}
-    origin = image_data.GetOrigin()
-    direction = image_data.GetDirection()
-    # affine = np.zeros((4, 4))
-    # affine[:3, :3] = np.asarray(direction).reshape(3, 3)
-    # affine[3, 3] = 1
-    affine = np.eye(4)
-    affine[0, 0] = scale[0]
-    affine[1, 1] = scale[1]
-    affine[2, 2] = scale[2]
-    return {"image": image, "affine": affine, "scale": scale, "metadata": {"metadata": metadata, "origin": origin, "direction": direction, "spacing": spacing}}
