@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 def write_single_image(path: str, data: Any, meta: dict):
     """Writes a single image layer"""
     meta = meta["metadata"]
-    spacing, origin, direction, header = None, None, None, None, None
+    spacing, origin, direction, header = None, None, None, None
     if "spacing" in meta:
         spacing = meta["spacing"]
     if "origin" in meta:
