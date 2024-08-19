@@ -21,7 +21,7 @@ def napari_get_reader(path):
         path = path[0]
 
     # if we know we cannot read the file, we immediately return None.
-    if not (path.endswith(".nii") or path.endswith(".nii.gz")):
+    if not (path.endswith(".nii") or path.endswith(".nii.gz") or path.endswith(".nrrd")):
         return None
 
     # otherwise we return the *function* that can read ``path``.
