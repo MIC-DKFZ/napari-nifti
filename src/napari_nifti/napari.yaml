@@ -11,11 +11,11 @@ contributions:
   readers:
     - command: napari-nifti.get_reader
       accepts_directories: false
-      filename_patterns: [ '*.nii', '*.nii.gz', '*.nrrd']
+      filename_patterns: [ '*.gz', '*.nii', '*.nii.gz', '*.nrrd']
   writers:
     - command: napari-nifti.write_single_image
       layer_types: ['image']
-      filename_extensions: [ '*.nii', '*.nii.gz', '*.nrrd' ]
+      filename_extensions: [ '*.gz', '*.nii', '*.nii.gz', '*.nrrd' ]
     - command: napari-nifti.write_single_image
       layer_types: [ 'labels' ]
-      filename_extensions: [ '*.nii', '*.nii.gz', '*.nrrd' ]
+      filename_extensions: [ '*.gz', '*.nii', '*.nii.gz', '*.nrrd' ]
