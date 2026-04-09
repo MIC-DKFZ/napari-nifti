@@ -19,5 +19,5 @@ def write_single_image(path: str, data: Any, meta: dict):
         direction = meta["direction"]
     if "header" in meta:
         header = meta["header"]
-    MedVol(data, spacing, origin, direction, header).save(path)
+    MedVol(data, spacing=spacing, origin=origin, direction=direction, header=header).save(path)
     return [path]
