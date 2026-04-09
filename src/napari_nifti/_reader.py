@@ -60,21 +60,27 @@ def reader_function(path):
         # round-trip saving. The deobliqued affine is computed separately for display.
         image = MedVol(_path, remove_obliqueness=False)
 
-        # MedVol canonical array axis order is XYZ (axis 0 = X, 1 = Y, 2 = Z).
+        # MedVol canonical array axis order is XYZ (axis 0 = X/R, 1 = Y/A, 2 = Z/S in RAS+).
         # Napari uses ZYX convention (axis 0 is the primary slider = Z for 3-D volumes).
         # Permute (X,Y,Z) → (Z,Y,X) so the slice slider scrolls through axial planes.
         array_zyx = np.transpose(image.array, (2, 1, 0))
 
-        # Build a deobliqued affine for display only: diagonal from spacing + origin.
-        # remove_obliqueness does not change spacing or origin, only the direction, so
-        # this is equivalent to loading with remove_obliqueness=True without a second IO.
-        spacing = np.array(image.spacing)   # XYZ order
-        origin  = np.array(image.origin)
-        deobliqued_xyz = np.diag([spacing[0], spacing[1], spacing[2], 1.0])
-        deobliqued_xyz[:3, 3] = origin
-        # Permute columns to match ZYX axis order for napari.
-        # Column i of A' = world direction of new array axis i.
-        affine_zyx = deobliqued_xyz[:, [2, 1, 0, 3]]
+        # Build a diagonal display affine in ZYX axis order.
+        # Napari requires that data axis i maps primarily to world axis i (avoids a
+        # singular sub-matrix in set_slice).  We apply clinical display conventions:
+        #   - Y (dim 1): negative scale → anterior at top of canvas
+        #   - X (dim 2): negative scale → radiological view (patient's R on screen left)
+        # The origin is placed at the canvas-top/left corner accordingly.
+        spacing_xyz = np.array(image.spacing)    # [sx, sy, sz] — always positive
+        origin_xyz  = np.array(image.origin)     # [ox, oy, oz] — RAS world of voxel (0,0,0)
+        Nx, Ny, Nz  = image.array.shape          # canonical R, A, S extents
+        sx, sy, sz  = spacing_xyz
+        ox, oy, oz  = origin_xyz
+
+        affine_zyx = np.diag([sz, -sy, -sx, 1.0])
+        affine_zyx[0, 3] = oz                    # Z: inferior end → first slider position
+        affine_zyx[1, 3] = oy + (Ny - 1) * sy   # Y: anterior end → top of canvas
+        affine_zyx[2, 3] = ox + (Nx - 1) * sx   # X: right end → left of canvas (radiological)
 
         metadata = {
             "affine": image.affine,             # true oblique XYZ affine — used for saving
