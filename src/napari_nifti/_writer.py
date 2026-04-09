@@ -10,14 +10,10 @@ if TYPE_CHECKING:
 def write_single_image(path: str, data: Any, meta: dict):
     """Writes a single image layer"""
     meta = meta["metadata"]
-    spacing, origin, direction, header = None, None, None, None
-    if "spacing" in meta:
-        spacing = meta["spacing"]
-    if "origin" in meta:
-        origin = meta["origin"]
-    if "direction" in meta:
-        direction = meta["direction"]
-    if "header" in meta:
-        header = meta["header"]
-    MedVol(data, spacing=spacing, origin=origin, direction=direction, header=header).save(path)
+    spacing = meta.get("spacing")
+    origin = meta.get("origin")
+    direction = meta.get("direction")
+    header = meta.get("header")
+    coordinate_system = meta.get("coordinate_system")
+    MedVol(data, spacing=spacing, origin=origin, direction=direction, header=header, coordinate_system=coordinate_system).save(path)
     return [path]

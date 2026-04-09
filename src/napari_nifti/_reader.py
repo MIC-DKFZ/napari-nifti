@@ -55,7 +55,7 @@ def reader_function(path):
     # load all files
     image_data_list = [MedVol(_path) for _path in paths]
     # Convert to LayerData tuples
-    layer_data = [(image_data.array, {"affine": image_data.affine, 
-                                      "metadata": {"spacing": image_data.spacing, "origin": image_data.origin, "direction": image_data.direction, "header": image_data.header}}, "image")
+    layer_data = [(image_data.array, {"affine": image_data.affine,
+                                      "metadata": {"spacing": image_data.spacing, "origin": image_data.origin, "direction": image_data.direction, "header": image_data.header, "coordinate_system": image_data.coordinate_system}}, "image")
                   for image_data in image_data_list]
     return layer_data
