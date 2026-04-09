@@ -1,3 +1,4 @@
+import numpy as np
 from medvol import MedVol
 
 def napari_get_reader(path):
@@ -52,10 +53,36 @@ def reader_function(path):
     """
     # handle both a string and a list of strings
     paths = [path] if isinstance(path, str) else path
-    # load all files
-    image_data_list = [MedVol(_path) for _path in paths]
-    # Convert to LayerData tuples
-    layer_data = [(image_data.array, {"affine": image_data.affine,
-                                      "metadata": {"spacing": image_data.spacing, "origin": image_data.origin, "direction": image_data.direction, "header": image_data.header, "coordinate_system": image_data.coordinate_system}}, "image")
-                  for image_data in image_data_list]
+    layer_data = []
+    for _path in paths:
+        # canonicalize=True (default): reorder axes to XYZ, fix flipped axes.
+        # Keep remove_obliqueness=False so the true oblique affine is preserved for
+        # round-trip saving. The deobliqued affine is computed separately for display.
+        image = MedVol(_path, remove_obliqueness=False)
+
+        # MedVol canonical array axis order is XYZ (axis 0 = X, 1 = Y, 2 = Z).
+        # Napari uses ZYX convention (axis 0 is the primary slider = Z for 3-D volumes).
+        # Permute (X,Y,Z) → (Z,Y,X) so the slice slider scrolls through axial planes.
+        array_zyx = np.transpose(image.array, (2, 1, 0))
+
+        # Build a deobliqued affine for display only: diagonal from spacing + origin.
+        # remove_obliqueness does not change spacing or origin, only the direction, so
+        # this is equivalent to loading with remove_obliqueness=True without a second IO.
+        spacing = np.array(image.spacing)   # XYZ order
+        origin  = np.array(image.origin)
+        deobliqued_xyz = np.diag([spacing[0], spacing[1], spacing[2], 1.0])
+        deobliqued_xyz[:3, 3] = origin
+        # Permute columns to match ZYX axis order for napari.
+        # Column i of A' = world direction of new array axis i.
+        affine_zyx = deobliqued_xyz[:, [2, 1, 0, 3]]
+
+        metadata = {
+            "affine": image.affine,             # true oblique XYZ affine — used for saving
+            "spacing": image.spacing,           # XYZ order
+            "origin": image.origin,
+            "direction": image.direction,
+            "header": image.header,
+            "coordinate_system": image.coordinate_system,
+        }
+        layer_data.append((array_zyx, {"affine": affine_zyx, "metadata": metadata}, "image"))
     return layer_data
