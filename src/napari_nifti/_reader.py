@@ -77,8 +77,8 @@ def reader_function(path):
         sx, sy, sz  = spacing_xyz
         ox, oy, oz  = origin_xyz
 
-        affine_zyx = np.diag([sz, -sy, -sx, 1.0])
-        affine_zyx[0, 3] = oz                    # Z: inferior end → first slider position
+        affine_zyx = np.diag([-sz, -sy, -sx, 1.0])
+        affine_zyx[0, 3] = oz + (Nz - 1) * sz   # Z: superior end → top when Z is rows
         affine_zyx[1, 3] = oy + (Ny - 1) * sy   # Y: anterior end → top of canvas
         affine_zyx[2, 3] = ox + (Nx - 1) * sx   # X: right end → left of canvas (radiological)
 
