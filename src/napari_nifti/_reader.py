@@ -55,40 +55,44 @@ def reader_function(path):
     paths = [path] if isinstance(path, str) else path
     layer_data = []
     for _path in paths:
-        # canonicalize=True (default): reorder axes to XYZ, fix flipped axes.
-        # Keep remove_obliqueness=False so the true oblique affine is preserved for
-        # round-trip saving. The deobliqued affine is computed separately for display.
-        image = MedVol(_path, remove_obliqueness=False)
+        image = MedVol(_path)
 
-        # MedVol canonical array axis order is XYZ (axis 0 = X/R, 1 = Y/A, 2 = Z/S in RAS+).
-        # Napari uses ZYX convention (axis 0 is the primary slider = Z for 3-D volumes).
-        # Permute (X,Y,Z) → (Z,Y,X) so the slice slider scrolls through axial planes.
-        array_zyx = np.transpose(image.array, (2, 1, 0))
+        # SAR+ axis order: dim 0 = Superior/Inferior (axial slider), dim 1 = Anterior/Posterior,
+        # dim 2 = Right/Left.  This matches napari's roll cycle to Slicer's three standard views:
+        #   Roll 0 → Axial   (A at top, R at left — radiological)
+        #   Roll 1 → Sagittal (S at top, A at left)
+        #   Roll 2 + T key → Coronal (S at top, R at left — radiological)
+        array_sar = image.get_array("SAR+")
 
-        # Build a diagonal display affine in ZYX axis order.
-        # Napari requires that data axis i maps primarily to world axis i (avoids a
-        # singular sub-matrix in set_slice).  We apply clinical display conventions:
-        #   - Y (dim 1): negative scale → anterior at top of canvas
-        #   - X (dim 2): negative scale → radiological view (patient's R on screen left)
-        # The origin is placed at the canvas-top/left corner accordingly.
-        spacing_xyz = np.array(image.spacing)    # [sx, sy, sz] — always positive
-        origin_xyz  = np.array(image.origin)     # [ox, oy, oz] — RAS world of voxel (0,0,0)
-        Nx, Ny, Nz  = image.array.shape          # canonical R, A, S extents
-        sx, sy, sz  = spacing_xyz
-        ox, oy, oz  = origin_xyz
+        # Deobliqued SAR+ geometry: diagonal spacing/origin used for the display affine.
+        # deoblique=True gives the effective per-axis voxel size without interpolation,
+        # which is what we need for the napari diagonal-affine constraint.
+        geom = image.get_geometry("SAR+", deoblique=True)
+        sp   = geom["spacing"]   # [sz, sy, sx] — always positive
+        orig = geom["origin"]    # world coords of voxel (0,0,0) in SAR+ space
+        sh   = array_sar.shape   # (Nz, Ny, Nx)  [spatial dims; time appended for 4-D]
 
-        affine_zyx = np.diag([-sz, -sy, -sx, 1.0])
-        affine_zyx[0, 3] = oz + (Nz - 1) * sz   # Z: superior end → top when Z is rows
-        affine_zyx[1, 3] = oy + (Ny - 1) * sy   # Y: anterior end → top of canvas
-        affine_zyx[2, 3] = ox + (Nx - 1) * sx   # X: right end → left of canvas (radiological)
+        # Diagonal display affine with negative scales and far-corner origins.
+        # Negative scale on dim i → world-high maps to canvas-top/left → correct anatomy:
+        #   dim 0 (S): −sz  →  superior end at top of slider
+        #   dim 1 (A): −sy  →  anterior end at top of canvas (axial/coronal)
+        #   dim 2 (R): −sx  →  patient's right at left of canvas (radiological convention)
+        ndim = image.ndims
+        display_affine = np.eye(ndim + 1)
+        for i in range(3):
+            display_affine[i, i] = -sp[i]
+            display_affine[i, ndim] = orig[i] + (sh[i] - 1) * sp[i]
+        # Non-spatial axes (e.g. time for 4-D) keep identity scaling.
+        for i in range(3, ndim):
+            display_affine[i, i] = sp[i] if i < len(sp) else 1.0
 
         metadata = {
-            "affine": image.affine,             # true oblique XYZ affine — used for saving
-            "spacing": image.spacing,           # XYZ order
+            "affine": image.affine,             # true oblique RAS+ affine — used for saving
+            "spacing": image.spacing,
             "origin": image.origin,
             "direction": image.direction,
             "header": image.header,
             "coordinate_system": image.coordinate_system,
         }
-        layer_data.append((array_zyx, {"affine": affine_zyx, "metadata": metadata}, "image"))
+        layer_data.append((array_sar, {"affine": display_affine, "metadata": metadata}, "image"))
     return layer_data
