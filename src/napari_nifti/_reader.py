@@ -1,4 +1,3 @@
-import numpy as np
 from medvol import MedVol
 
 def napari_get_reader(path):
@@ -72,19 +71,31 @@ def reader_function(path):
         orig = geom["origin"]    # world coords of voxel (0,0,0) in SAR+ space
         sh   = array_sar.shape   # (Nz, Ny, Nx)  [spatial dims; time appended for 4-D]
 
-        # Diagonal display affine with negative scales and far-corner origins.
-        # Negative scale on dim i → world-high maps to canvas-top/left → correct anatomy:
-        #   dim 0 (S): −sz  →  superior end at top of slider
-        #   dim 1 (A): −sy  →  anterior end at top of canvas (axial/coronal)
-        #   dim 2 (R): −sx  →  patient's right at left of canvas (radiological convention)
+        # Build scale and translate for napari display.
+        #
+        # `scale` is napari's canonical per-voxel physical size parameter.  Using it
+        # directly (instead of a full `affine`) guarantees napari applies the correct
+        # pixel aspect ratio in every 2-D slice view — in particular, a thick-slice
+        # dimension (large sp, few voxels) is rendered at its true physical height
+        # rather than being compressed to the same pixel height as a thin-slice dim.
+        #
+        # Negative spatial scales encode both the flip direction and the voxel size:
+        #   dim 0 (S): −sz  →  superior at top of slider / canvas row
+        #   dim 1 (A): −sy  →  anterior at top of canvas
+        #   dim 2 (R): −sx  →  patient's right at left of canvas (radiological)
+        #
+        # translate[i] = far-corner world origin so that voxel 0 maps to the
+        # anatomically "high" end (superior / anterior / right) of the axis.
         ndim = image.ndims
-        display_affine = np.eye(ndim + 1)
+        display_scale = []
+        display_translate = []
         for i in range(3):
-            display_affine[i, i] = -sp[i]
-            display_affine[i, ndim] = orig[i] + (sh[i] - 1) * sp[i]
-        # Non-spatial axes (e.g. time for 4-D) keep identity scaling.
+            display_scale.append(-sp[i])
+            display_translate.append(orig[i] + (sh[i] - 1) * sp[i])
+        # Non-spatial axes (e.g. time for 4-D): positive scale, no flip.
         for i in range(3, ndim):
-            display_affine[i, i] = sp[i] if i < len(sp) else 1.0
+            display_scale.append(sp[i] if i < len(sp) else 1.0)
+            display_translate.append(orig[i] if i < len(orig) else 0.0)
 
         metadata = {
             "affine": image.affine,             # true oblique RAS+ affine — used for saving
@@ -94,5 +105,9 @@ def reader_function(path):
             "header": image.header,
             "coordinate_system": image.coordinate_system,
         }
-        layer_data.append((array_sar, {"affine": display_affine, "metadata": metadata}, "image"))
+        layer_data.append((
+            array_sar,
+            {"scale": display_scale, "translate": display_translate, "metadata": metadata},
+            "image",
+        ))
     return layer_data
